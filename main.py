@@ -7,6 +7,12 @@ from PIL import Image
 import io
 import os
 
+# For PyTorch >= 2.6 secure loading fix
+import torch
+from torch.serialization import add_safe_globals
+from ultralytics.nn.tasks import ClassificationModel
+add_safe_globals([ClassificationModel])  # Allow classification model to be loaded
+
 app = FastAPI()
 
 # Set up Jinja2 template directory and static files
@@ -59,8 +65,9 @@ async def predict(request: Request, file: UploadFile = File(...)):
             "request": request,
             "result": {"error": str(e)}
         })
+
+# Run with uvicorn
 if __name__ == "__main__":
     import uvicorn
-    import os
-    port = int(os.environ.get("PORT", 8080))  # Use PORT env variable if present
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    port = int(os.environ.get("PORT", 8080))  # Use environment port
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
