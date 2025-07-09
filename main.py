@@ -7,11 +7,10 @@ from PIL import Image
 import io
 import os
 
-# For PyTorch >= 2.6 secure loading fix
-import torch
+# 🛡️ Patch PyTorch safe unpickling
 from torch.serialization import add_safe_globals
-from ultralytics.nn.tasks import ClassificationModel
-add_safe_globals([ClassificationModel])  # Allow classification model to be loaded
+from torch.nn.modules.container import Sequential
+add_safe_globals([Sequential])
 
 app = FastAPI()
 
@@ -66,8 +65,7 @@ async def predict(request: Request, file: UploadFile = File(...)):
             "result": {"error": str(e)}
         })
 
-# Run with uvicorn
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8080))  # Use environment port
+    port = int(os.environ.get("PORT", 8080))  # Use PORT env variable if present
     uvicorn.run("main:app", host="0.0.0.0", port=port)
