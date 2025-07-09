@@ -6,19 +6,26 @@ from ultralytics import YOLO
 from PIL import Image
 import io
 import os
+import torch
 
-# 🛡️ Patch PyTorch safe unpickling
+# ✅ Patch PyTorch safe unpickling
 from torch.serialization import add_safe_globals
 from torch.nn.modules.container import Sequential
 add_safe_globals([Sequential])
 
+# ✅ Override torch.load to force weights_only=False
+_original_torch_load = torch.load
+def patched_torch_load(*args, **kwargs):
+    kwargs['weights_only'] = False
+    return _original_torch_load(*args, **kwargs)
+torch.load = patched_torch_load
+
 app = FastAPI()
 
-# Set up Jinja2 template directory and static files
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Load your trained model (handle file not found for safety)
+# ✅ Load YOLO model with weights_only=False behavior
 model_path = "runs/classify/train_dog_disease_v2/weights/best.pt"
 if os.path.exists(model_path):
     model = YOLO(model_path)
@@ -26,12 +33,10 @@ else:
     model = None
     print("⚠️ Model file not found:", model_path)
 
-# Home page route
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request, "result": None})
 
-# Prediction route
 @app.post("/predict", response_class=HTMLResponse)
 async def predict(request: Request, file: UploadFile = File(...)):
     if not model:
@@ -44,7 +49,7 @@ async def predict(request: Request, file: UploadFile = File(...)):
         contents = await file.read()
         img = Image.open(io.BytesIO(contents)).convert("RGB")
 
-        results = model(img)[0]  # Get first result
+        results = model(img)[0]
         pred_class = results.names[results.probs.top1]
         confidence = results.probs.top1conf.item()
 
@@ -67,5 +72,5 @@ async def predict(request: Request, file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.environ.get("PORT", 8080))  # Use PORT env variable if present
+    port = int(os.environ.get("PORT", 8080))
     uvicorn.run("main:app", host="0.0.0.0", port=port)
