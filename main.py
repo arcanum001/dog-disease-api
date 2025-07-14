@@ -117,7 +117,7 @@ async def predict_json(file: UploadFile = File(...)):
 
 
 # ✅ Run locally (optional)
-if _name_ == "_main_": # type: ignore
+if __name__ == "__main__":# type: ignore
     import uvicorn
     port = int(os.environ.get("PORT", 8080))
     uvicorn.run("main:app", host="0.0.0.0", port=port)
